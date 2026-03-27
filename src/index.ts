@@ -13,6 +13,10 @@ import { definePluginEntry, type OpenClawPluginApi } from "openclaw/plugin-sdk/p
 import { evaluateMessage } from "./triage.js";
 import { type TriageGateConfig } from "./config.js";
 
+// Guard against multiple registrations. OpenClaw calls register() for each
+// agent context, but we only need one before_dispatch hook globally.
+let registered = false;
+
 export default definePluginEntry({
   id: "openclaw-triage-gate",
   name: "Triage Gate",
@@ -20,6 +24,9 @@ export default definePluginEntry({
     "Uses a cheap model to decide if the bot should respond in group chats, saving 75-90% of group chat token costs.",
 
   register(api: OpenClawPluginApi) {
+    if (registered) return;
+    registered = true;
+
     const config = (api.pluginConfig ?? {}) as TriageGateConfig;
     const logDecisions = config.logDecisions !== false; // default: true
 

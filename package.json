@@ -1,6 +1,6 @@
 {
   "name": "openclaw-triage-gate",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A lightweight triage gate for OpenClaw group chats. Uses a cheap model to decide if the bot should respond before the expensive main model runs.",
   "type": "module",
   "main": "src/index.ts",
