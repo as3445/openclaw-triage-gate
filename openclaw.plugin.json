@@ -1,0 +1,63 @@
+{
+  "id": "triage-gate",
+  "name": "Triage Gate",
+  "description": "Uses a cheap model to decide if the bot should respond in group chats before the main model runs. Saves 75-90% of group chat token costs.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "triageModel": {
+        "type": "string",
+        "description": "Model to use for triage decisions, in provider/model format."
+      },
+      "triagePrompt": {
+        "type": "string",
+        "description": "Custom prompt for triage decisions. Must instruct the model to reply with RESPOND or SKIP."
+      },
+      "groups": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Only apply triage to these group IDs. Empty means all groups."
+      },
+      "excludeGroups": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Skip triage for these group IDs (always let messages through)."
+      },
+      "maxTriageTokens": {
+        "type": "number",
+        "description": "Max output tokens for the triage model response."
+      },
+      "logDecisions": {
+        "type": "boolean",
+        "description": "Whether to log each triage decision."
+      }
+    }
+  },
+  "uiHints": {
+    "triageModel": {
+      "label": "Triage Model",
+      "help": "Model for triage decisions (e.g. anthropic/claude-haiku-4-5, minimax/minimax-m2.5). Default: anthropic/claude-haiku-4-5-20251001"
+    },
+    "triagePrompt": {
+      "label": "Triage Prompt",
+      "help": "Custom prompt that tells the triage model when to RESPOND vs SKIP"
+    },
+    "groups": {
+      "label": "Groups",
+      "help": "Group IDs to apply triage to (empty = all groups)"
+    },
+    "excludeGroups": {
+      "label": "Exclude Groups",
+      "help": "Group IDs to skip triage for (messages always proceed to main model)"
+    },
+    "maxTriageTokens": {
+      "label": "Max Triage Tokens",
+      "help": "Max output tokens for triage response (default: 10)"
+    },
+    "logDecisions": {
+      "label": "Log Decisions",
+      "help": "Log each triage decision to the plugin logger (default: true)"
+    }
+  }
+}

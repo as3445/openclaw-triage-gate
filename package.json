@@ -1,0 +1,35 @@
+{
+  "name": "openclaw-triage-gate",
+  "version": "1.0.0",
+  "description": "A lightweight triage gate for OpenClaw group chats. Uses a cheap model to decide if the bot should respond before the expensive main model runs.",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/as3445/openclaw-triage-gate"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "triage",
+    "token-optimization",
+    "group-chat"
+  ],
+  "peerDependencies": {
+    "openclaw": ">=2026.3.22"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./src/index.ts"
+    ],
+    "install": {
+      "npmSpec": "openclaw-triage-gate"
+    }
+  }
+}
