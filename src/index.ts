@@ -14,7 +14,7 @@ import { evaluateMessage } from "./triage.js";
 import { type TriageGateConfig } from "./config.js";
 
 export default definePluginEntry({
-  id: "triage-gate",
+  id: "openclaw-triage-gate",
   name: "Triage Gate",
   description:
     "Uses a cheap model to decide if the bot should respond in group chats, saving 75-90% of group chat token costs.",
