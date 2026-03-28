@@ -51,6 +51,37 @@ export type TriageGateConfig = {
    * Default: true
    */
   logDecisions?: boolean;
+
+  /**
+   * Keywords that bypass triage entirely. When a message contains any of
+   * these keywords (case-insensitive substring match), the bot always
+   * responds without calling the triage model.
+   */
+  bypassKeywords?: string[];
+
+  /**
+   * When true, the triage model returns a 1-10 confidence score instead
+   * of binary RESPOND/SKIP. Messages scoring at or above the threshold
+   * proceed to the main model.
+   * Default: false
+   */
+  useConfidenceScores?: boolean;
+
+  /**
+   * Confidence threshold (1-10). Messages with a score at or above this
+   * value proceed to the main model. Only used when useConfidenceScores
+   * is true.
+   * Default: 5
+   */
+  confidenceThreshold?: number;
+
+  /**
+   * Number of recent group messages to include in the triage prompt for
+   * additional context. Helps the model make better decisions by seeing
+   * the conversation flow.
+   * Default: 0 (disabled), Max: 20
+   */
+  historyCount?: number;
 };
 
 /** The default triage model when none is configured. */
@@ -80,3 +111,15 @@ SKIP when:
 - A response would just be acknowledgment ("nice", "yeah", "lol")
 - The conversation is flowing fine without the bot
 - The message is a reaction, emoji, or sticker`;
+
+/** Default confidence threshold when useConfidenceScores is enabled. */
+export const DEFAULT_CONFIDENCE_THRESHOLD = 5;
+
+/** Default number of recent messages to include in triage context. */
+export const DEFAULT_HISTORY_COUNT = 0;
+
+/**
+ * The built-in confidence-scoring prompt. Instructs the model to reply
+ * with a single number 1-10 indicating response likelihood.
+ */
+export const DEFAULT_CONFIDENCE_PROMPT = `Reply with a single number 1-10 indicating how likely the bot should respond. 1 = definitely skip, 10 = definitely respond. Reply with ONLY the number.`;

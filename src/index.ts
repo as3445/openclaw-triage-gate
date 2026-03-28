@@ -10,7 +10,7 @@
  */
 
 import { definePluginEntry, type OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
-import { evaluateMessage } from "./triage.js";
+import { evaluateMessage, containsBypassKeyword } from "./triage.js";
 import { type TriageGateConfig } from "./config.js";
 
 // Guard against multiple registrations. OpenClaw calls register() for each
@@ -29,6 +29,7 @@ export default definePluginEntry({
 
     const config = (api.pluginConfig ?? {}) as TriageGateConfig;
     const logDecisions = config.logDecisions !== false; // default: true
+    const historyCount = Math.min(Math.max(config.historyCount ?? 0, 0), 20);
 
     // Pre-compute the set of groups to include/exclude for fast lookups
     const includeGroups = config.groups?.length
@@ -76,18 +77,52 @@ export default definePluginEntry({
         return { handled: true }; // Skip silently
       }
 
+      // Always respond when the bot was directly mentioned
+      if (event.wasMentioned) {
+        if (logDecisions) {
+          api.logger.info?.(`triage-gate: RESPOND (mentioned) — "${event.content.slice(0, 80)}"`);
+        }
+        return; // let message through without triage
+      }
+
+      // Check for bypass keywords — if matched, skip triage entirely
+      if (config.bypassKeywords?.length) {
+        const matched = containsBypassKeyword(event.content, config.bypassKeywords);
+        if (matched) {
+          if (logDecisions) {
+            api.logger.info?.(`triage-gate: BYPASS (keyword: ${matched})`);
+          }
+          return; // undefined = let message through without triage
+        }
+      }
+
+      // Collect recent messages from the event (populated by OpenClaw's dispatch pipeline)
+      let recentMessages: Array<{ role: string; content: string }> | undefined;
+      if (historyCount > 0 && event.recentMessages?.length) {
+        recentMessages = event.recentMessages.slice(-historyCount).map((m) => ({
+          role: m.sender,
+          content: m.body,
+        }));
+      }
+
       // Run the triage model
       const result = await evaluateMessage({
         content: event.content,
+        senderName: event.senderName,
+        groupSubject: event.groupSubject,
         config,
         resolveApiKey,
         logger: logDecisions ? api.logger : undefined,
+        recentMessages,
       });
 
       if (logDecisions) {
         const decision = result.shouldRespond ? "RESPOND" : "SKIP";
+        const scoreInfo = result.confidenceScore != null
+          ? `score: ${result.confidenceScore}/10, `
+          : "";
         api.logger.info?.(
-          `triage-gate: ${decision} (${result.durationMs}ms) — "${event.content.slice(0, 80)}"`,
+          `triage-gate: ${decision} (${scoreInfo}${result.durationMs}ms) — "${event.content.slice(0, 80)}"`,
         );
       }
 
