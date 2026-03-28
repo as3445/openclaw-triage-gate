@@ -79,7 +79,11 @@ export default definePluginEntry({
     const config = (api.pluginConfig ?? {}) as TriageGateConfig;
     const logDecisions = config.logDecisions !== false; // default: true
     const historyCount = Math.min(Math.max(config.historyCount ?? 0, 0), 20);
-    const botNameLower = config.botName?.toLowerCase() ?? "";
+
+    // Resolve bot name: explicit config > first agent's identity.name from OpenClaw config
+    const ocConfig = api.config as { agents?: { list?: Array<{ identity?: { name?: string } }> } };
+    const agentIdentityName = ocConfig.agents?.list?.[0]?.identity?.name;
+    const botNameLower = (config.botName ?? agentIdentityName ?? "").toLowerCase();
 
     // Pre-compute the set of groups to include/exclude for fast lookups
     const includeGroups = config.groups?.length
