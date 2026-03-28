@@ -52,6 +52,10 @@
         "minimum": 0,
         "maximum": 20,
         "description": "Number of recent group messages to include in the triage prompt for context. Default: 0 (disabled), max: 20."
+      },
+      "botName": {
+        "type": "string",
+        "description": "The bot's name. Messages containing this name bypass triage and always get a response."
       }
     }
   },
@@ -95,6 +99,10 @@
     "historyCount": {
       "label": "History Count",
       "help": "Number of recent messages to include in the triage prompt for context (default: 0, max: 20)"
+    },
+    "botName": {
+      "label": "Bot Name",
+      "help": "The bot's name — messages containing this name always get a response (e.g. 'Nox')"
     }
   }
 }

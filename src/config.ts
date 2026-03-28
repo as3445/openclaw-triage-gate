@@ -78,10 +78,18 @@ export type TriageGateConfig = {
   /**
    * Number of recent group messages to include in the triage prompt for
    * additional context. Helps the model make better decisions by seeing
-   * the conversation flow.
+   * the conversation flow. The plugin maintains its own in-memory buffer
+   * per group (resets on plugin restart).
    * Default: 0 (disabled), Max: 20
    */
   historyCount?: number;
+
+  /**
+   * The bot's name. When set, messages containing this name (case-insensitive)
+   * bypass triage and always get a response — similar to an @mention.
+   * Example: "Nox"
+   */
+  botName?: string;
 };
 
 /** The default triage model when none is configured. */

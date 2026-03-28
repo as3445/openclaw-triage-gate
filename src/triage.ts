@@ -26,11 +26,8 @@ type TriageParams = {
   /** The message content to evaluate. */
   content: string;
 
-  /** Display name of the message sender (when available). */
+  /** Sender identifier (when available). */
   senderName?: string;
-
-  /** Group chat name/subject (when available). */
-  groupSubject?: string;
 
   /** Plugin config. */
   config: TriageGateConfig;
@@ -80,7 +77,7 @@ export type TriageResult = {
  * silently drop messages.
  */
 export async function evaluateMessage(params: TriageParams): Promise<TriageResult> {
-  const { content, senderName, groupSubject, config, resolveApiKey, logger, recentMessages } = params;
+  const { content, senderName, config, resolveApiKey, logger, recentMessages } = params;
   const startTime = Date.now();
 
   const modelString = config.triageModel ?? DEFAULT_TRIAGE_MODEL;
@@ -102,7 +99,7 @@ export async function evaluateMessage(params: TriageParams): Promise<TriageResul
     const adapter = getProviderAdapter(provider);
 
     // Build the user message with available context
-    const userMessage = buildTriageUserMessage({ content, senderName, groupSubject, recentMessages });
+    const userMessage = buildTriageUserMessage({ content, senderName, recentMessages });
 
     // Make the API call
     const response = await fetch(adapter.endpoint, {
@@ -158,14 +155,10 @@ export async function evaluateMessage(params: TriageParams): Promise<TriageResul
 export function buildTriageUserMessage(params: {
   content: string;
   senderName?: string;
-  groupSubject?: string;
   recentMessages?: Array<{ role: string; content: string }>;
 }): string {
   const parts: string[] = [];
 
-  if (params.groupSubject) {
-    parts.push(`Group: ${params.groupSubject}`);
-  }
   if (params.senderName) {
     parts.push(`From: ${params.senderName}`);
   }

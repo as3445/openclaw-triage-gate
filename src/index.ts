@@ -17,6 +17,55 @@ import { type TriageGateConfig } from "./config.js";
 // agent context, but we only need one before_dispatch hook globally.
 let registered = false;
 
+/**
+ * In-memory ring buffer that accumulates recent messages per group.
+ * Keyed by sessionKey (group ID). Resets on plugin restart — this is
+ * acceptable for triage context since it's best-effort.
+ */
+const groupHistoryBuffers = new Map<
+  string,
+  Array<{ role: string; content: string; ts: number }>
+>();
+
+/** Evict groups with no activity in the last hour to prevent unbounded growth. */
+const EVICT_AFTER_MS = 60 * 60 * 1000;
+
+function pushToBuffer(
+  groupId: string,
+  senderId: string,
+  content: string,
+  maxSize: number,
+): void {
+  let buffer = groupHistoryBuffers.get(groupId);
+  if (!buffer) {
+    buffer = [];
+    groupHistoryBuffers.set(groupId, buffer);
+  }
+  buffer.push({ role: senderId, content, ts: Date.now() });
+  // Keep only the last maxSize entries
+  if (buffer.length > maxSize) {
+    buffer.splice(0, buffer.length - maxSize);
+  }
+}
+
+function getBufferedHistory(
+  groupId: string,
+  count: number,
+): Array<{ role: string; content: string }> | undefined {
+  const buffer = groupHistoryBuffers.get(groupId);
+  if (!buffer?.length) return undefined;
+  return buffer.slice(-count).map(({ role, content }) => ({ role, content }));
+}
+
+function evictStaleBuffers(): void {
+  const cutoff = Date.now() - EVICT_AFTER_MS;
+  for (const [key, buffer] of groupHistoryBuffers) {
+    if (!buffer.length || buffer[buffer.length - 1].ts < cutoff) {
+      groupHistoryBuffers.delete(key);
+    }
+  }
+}
+
 export default definePluginEntry({
   id: "openclaw-triage-gate",
   name: "Triage Gate",
@@ -30,6 +79,7 @@ export default definePluginEntry({
     const config = (api.pluginConfig ?? {}) as TriageGateConfig;
     const logDecisions = config.logDecisions !== false; // default: true
     const historyCount = Math.min(Math.max(config.historyCount ?? 0, 0), 20);
+    const botNameLower = config.botName?.toLowerCase() ?? "";
 
     // Pre-compute the set of groups to include/exclude for fast lookups
     const includeGroups = config.groups?.length
@@ -38,6 +88,11 @@ export default definePluginEntry({
     const excludeGroups = config.excludeGroups?.length
       ? new Set(config.excludeGroups)
       : null;
+
+    // Periodically evict stale group buffers (every 10 minutes)
+    if (historyCount > 0) {
+      setInterval(evictStaleBuffers, 10 * 60 * 1000);
+    }
 
     /**
      * Resolve an API key for a provider/model using OpenClaw's auth system.
@@ -77,10 +132,14 @@ export default definePluginEntry({
         return { handled: true }; // Skip silently
       }
 
-      // Always respond when the bot was directly mentioned
-      if (event.wasMentioned) {
+      // Always respond when the bot's name is mentioned in the message
+      if (botNameLower && event.content.toLowerCase().includes(botNameLower)) {
         if (logDecisions) {
-          api.logger.info?.(`triage-gate: RESPOND (mentioned) — "${event.content.slice(0, 80)}"`);
+          api.logger.info?.(`triage-gate: RESPOND (bot name mentioned) — "${event.content.slice(0, 80)}"`);
+        }
+        // Still record in history buffer before passing through
+        if (historyCount > 0) {
+          pushToBuffer(groupId, event.senderId ?? "unknown", event.content, historyCount);
         }
         return; // let message through without triage
       }
@@ -92,24 +151,28 @@ export default definePluginEntry({
           if (logDecisions) {
             api.logger.info?.(`triage-gate: BYPASS (keyword: ${matched})`);
           }
+          if (historyCount > 0) {
+            pushToBuffer(groupId, event.senderId ?? "unknown", event.content, historyCount);
+          }
           return; // undefined = let message through without triage
         }
       }
 
-      // Collect recent messages from the event (populated by OpenClaw's dispatch pipeline)
-      let recentMessages: Array<{ role: string; content: string }> | undefined;
-      if (historyCount > 0 && event.recentMessages?.length) {
-        recentMessages = event.recentMessages.slice(-historyCount).map((m) => ({
-          role: m.sender,
-          content: m.body,
-        }));
+      // Get recent messages from the in-memory buffer
+      const recentMessages = historyCount > 0
+        ? getBufferedHistory(groupId, historyCount)
+        : undefined;
+
+      // Record this message in the buffer (after reading history so this
+      // message isn't included as "recent" context for itself)
+      if (historyCount > 0) {
+        pushToBuffer(groupId, event.senderId ?? "unknown", event.content, historyCount);
       }
 
       // Run the triage model
       const result = await evaluateMessage({
         content: event.content,
-        senderName: event.senderName,
-        groupSubject: event.groupSubject,
+        senderName: event.senderId,
         config,
         resolveApiKey,
         logger: logDecisions ? api.logger : undefined,

@@ -149,11 +149,6 @@ describe("buildTriageUserMessage", () => {
     expect(result).toBe("Message: hello");
   });
 
-  it("includes group subject when available", () => {
-    const result = buildTriageUserMessage({ content: "hello", groupSubject: "Dev Team" });
-    expect(result).toBe("Group: Dev Team\nMessage: hello");
-  });
-
   it("includes sender name when available", () => {
     const result = buildTriageUserMessage({ content: "hello", senderName: "Alice" });
     expect(result).toBe("From: Alice\nMessage: hello");
@@ -163,14 +158,13 @@ describe("buildTriageUserMessage", () => {
     const result = buildTriageUserMessage({
       content: "can you help?",
       senderName: "Bob",
-      groupSubject: "Support",
       recentMessages: [
         { role: "Alice", content: "I have an issue" },
         { role: "Bot", content: "What kind of issue?" },
       ],
     });
     expect(result).toBe(
-      "Group: Support\nFrom: Bob\nMessage: can you help?\n\nRecent conversation:\n- Alice: I have an issue\n- Bot: What kind of issue?",
+      "From: Bob\nMessage: can you help?\n\nRecent conversation:\n- Alice: I have an issue\n- Bot: What kind of issue?",
     );
   });
 
